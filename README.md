@@ -11,7 +11,7 @@ Automatically saves your game when you approach a mission, after completing one,
 
 ## Requirements
 
-- **GTA III version 1.0** — the mod does not work on patched versions. Downgrading can be easily found via a Google search.
+- **GTA III version 1.0** — the mod does not work on patched versions. [Instructions for downgrading](https://www.google.com/search?q=gta3+downgrade)
 - **ASI Loader** — download the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases) by ThirteenAG. From the release assets, grab `dinput8.dll` and place it in your GTA III installation root directory (the folder containing `gta3.exe`).
 
 ## Installation
