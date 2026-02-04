@@ -34,7 +34,7 @@ jobs:
       - name: Build Release
         env:
           PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
-        run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=GTA3 /v:minimal /nologo
+        run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=GTA3 /p:PlatformToolset=v143 /v:minimal /nologo
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
