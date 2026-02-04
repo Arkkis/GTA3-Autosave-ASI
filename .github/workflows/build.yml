@@ -31,6 +31,19 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
+      - name: Generate Plugin SDK solution
+        shell: cmd
+        env:
+          PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+        run: |
+          cd ${{ github.workspace }}\plugin-sdk\tools\premake
+          premake5.exe vs2022
+
+      - name: Build Plugin SDK
+        env:
+          PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+        run: msbuild plugin-sdk\plugin.sln /t:Plugin_III /p:Configuration=Release /p:PlatformToolset=v143 /v:minimal /nologo
+
       - name: Build Release
         env:
           PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
