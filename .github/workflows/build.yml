@@ -1,0 +1,49 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history needed for commit-count versioning
+
+      - name: Compute version
+        id: version
+        shell: pwsh
+        run: |
+          $count = (git rev-list --count HEAD).Trim()
+          "version=1.0.$count" >> $env:GITHUB_OUTPUT
+
+      - name: Clone Plugin SDK
+        run: git clone https://github.com/DK22Pac/plugin-sdk plugin-sdk
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Build Release
+        env:
+          PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+        run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=GTA3 /v:minimal /nologo
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            bin/GTA3/Release/Autosave.III.asi
+            Autosave.III.ini
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
