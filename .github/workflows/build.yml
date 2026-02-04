@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'source/**'
+      - 'Autosave.sln'
+      - 'Autosave.vcxproj'
+      - 'Autosave.III.ini'
   workflow_dispatch:
 
 permissions:
