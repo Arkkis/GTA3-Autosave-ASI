@@ -1,6 +1,6 @@
-# GTA III Autosave Mod
+# GTA Autosave
 
-Automatically saves your game when you approach a mission, after completing one, and lets you retry failed missions from that save.
+Automatically saves your game when you approach a mission, after completing one, and lets you retry failed missions from that save. Supports GTA III, Vice City, and San Andreas.
 
 ## Features
 
@@ -11,20 +11,25 @@ Automatically saves your game when you approach a mission, after completing one,
 
 ## Requirements
 
-- **GTA III version 1.0** — the mod does not work on patched versions. [Instructions for downgrading](https://www.google.com/search?q=gta3+downgrade)
-- **ASI Loader** — download the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases) by ThirteenAG. From the release assets, grab `dinput8.dll` and place it in your GTA III installation root directory (the folder containing `gta3.exe`).
+- **Game version 1.0** — the mod requires the original unpatched exe for each game. Downgrade guides: [GTA III](https://www.google.com/search?q=gta3+downgrade), [Vice City](https://www.google.com/search?q=gta+vice+city+downgrade+1.0), [San Andreas](https://www.google.com/search?q=gta+san+andreas+downgrade+1.0)
+- **ASI Loader** — download the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases) by ThirteenAG. From the release assets, grab `dinput8.dll` and place it in your game's installation root directory (the folder containing the game exe).
 
 ## Installation
 
 1. Download the latest release from the [Releases](../../releases) page
-2. Place `Autosave.III.asi` and `Autosave.III.ini` into the `scripts` folder inside your GTA III directory
+2. Place the files for your game into the `scripts` folder inside the game directory:
+   - **GTA III** — `Autosave.III.asi` + `Autosave.III.ini`
+   - **Vice City** — `Autosave.VC.asi` + `Autosave.VC.ini`
+   - **San Andreas** — `Autosave.SA.asi` + `Autosave.SA.ini`
 
 That's it. Launch the game and the mod will be active.
 
 ## Configuration
 
-Open `Autosave.III.ini` in the `scripts` folder to adjust settings:
+Open the INI file for your game (`Autosave.III.ini`, `Autosave.VC.ini`, or `Autosave.SA.ini`) in the `scripts` folder to adjust settings:
 
 | Option | Values | Description |
 |--------|--------|-------------|
 | `Debug` | `0` / `1` | Enables an on-screen debug overlay showing the mod's internal state |
+| `ApproachAutosave` | `0` / `1` | Autosave when approaching a mission marker (default: enabled) |
+| `MissionCompleteAutosave` | `0` / `1` | Autosave after completing a mission (default: enabled) |

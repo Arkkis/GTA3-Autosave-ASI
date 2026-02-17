@@ -3,3 +3,4 @@
 .vs
 *.vcxproj.user
 /plugin-sdk
+.claude/settings.local.json

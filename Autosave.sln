@@ -7,12 +7,24 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|GTA3 = Debug|GTA3
 		Release|GTA3 = Release|GTA3
+		Debug|VC = Debug|VC
+		Release|VC = Release|VC
+		Debug|SA = Debug|SA
+		Release|SA = Release|SA
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|GTA3.ActiveCfg = Debug GTA3|Win32
 		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|GTA3.Build.0 = Debug GTA3|Win32
 		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|GTA3.ActiveCfg = Release GTA3|Win32
 		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|GTA3.Build.0 = Release GTA3|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|VC.ActiveCfg = Debug VC|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|VC.Build.0 = Debug VC|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|VC.ActiveCfg = Release VC|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|VC.Build.0 = Release VC|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|SA.ActiveCfg = Debug SA|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Debug|SA.Build.0 = Debug SA|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|SA.ActiveCfg = Release SA|Win32
+		{E868E9D9-D40A-14B0-BDC5-2704A9069B00}.Release|SA.Build.0 = Release SA|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

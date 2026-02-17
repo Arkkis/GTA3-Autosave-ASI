@@ -9,6 +9,8 @@ on:
       - 'Autosave.sln'
       - 'Autosave.vcxproj'
       - 'Autosave.III.ini'
+      - 'Autosave.VC.ini'
+      - 'Autosave.SA.ini'
   workflow_dispatch:
 
 permissions:
@@ -47,12 +49,22 @@ jobs:
       - name: Build Plugin SDK
         env:
           PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
-        run: msbuild plugin-sdk\plugin.sln /t:Plugin_III /p:Configuration=Release /p:PlatformToolset=v143 /v:minimal /nologo
+        run: msbuild plugin-sdk\plugin.sln /t:Plugin_III,Plugin_VC,Plugin_SA /p:Configuration=Release /p:PlatformToolset=v143 /v:minimal /nologo
 
-      - name: Build Release
+      - name: Build GTA III Release
         env:
           PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
         run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=GTA3 /p:PlatformToolset=v143 /v:minimal /nologo
+
+      - name: Build Vice City Release
+        env:
+          PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+        run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=VC /p:PlatformToolset=v143 /v:minimal /nologo
+
+      - name: Build San Andreas Release
+        env:
+          PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
+        run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=SA /p:PlatformToolset=v143 /v:minimal /nologo
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -63,5 +75,9 @@ jobs:
           files: |
             bin/GTA3/Release/Autosave.III.asi
             Autosave.III.ini
+            bin/VC/Release/Autosave.VC.asi
+            Autosave.VC.ini
+            bin/SA/Release/Autosave.SA.asi
+            Autosave.SA.ini
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
