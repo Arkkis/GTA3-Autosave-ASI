@@ -496,20 +496,51 @@ public:
         // revision (PLUGIN_SGV_10EN / PLUGIN_SGV_10US). On any other build the event
         // hooks below would be written into unrelated code, so refuse to install them
         // and say why -- otherwise the mod just silently does nothing.
-        if (!IsSupportedGameVersion()) {
+        if (!IsUsableGameVersion()) {
             Error("Unsupported game version: %s\n\n"
                   "This mod only works with:\n    %s\n\n"
                   "Downgrade the game to that version, or remove this mod.",
-                  GetGameVersionName(), GetSupportedGameVersionsString("\n    ").c_str());
+                  GetGameVersionName(), SupportedVersionsText().c_str());
             return;
         }
 
+#ifndef GTASA
+        // SA deliberately skips this event -- see IsUsableGameVersion().
         Events::initGameEvent += []{ Instance().OnGameInit(); };
+#endif
         Events::gameProcessEvent += []{ Instance().OnGameProcess(); };
         Events::drawHudEvent += []{ Instance().OnDrawHud(); };
     }
 
 private:
+    // San Andreas 1.0 EU is the same build as 1.0 US with two shifted code regions:
+    // below 0x741000 the two images are address-identical, 0x741000-0x7C0FFF is
+    // displaced by +0x50 and the remainder of .text by +0x40. Every global this mod
+    // reads sits at an identical address in both (verified by counting immediate
+    // references to each in the two .text sections), as does every function it calls
+    // -- all of those live below 0x741000. The single exception was the hook site for
+    // Events::initGameEvent at 0x748CFB, which lands in the +0x50 region and would
+    // patch the middle of an unrelated instruction on EU. The SA target therefore does
+    // not use that event at all (the one-time setup runs on the first processed frame
+    // instead), which leaves nothing version-specific and makes 1.0 EU safe to accept.
+    //
+    // tools/check_addresses.py reproduces the comparison against a pair of exes.
+    static bool IsUsableGameVersion() {
+#ifdef GTASA
+        if (GetGameVersion() == GAME_10EU) return true;
+#endif
+        return IsSupportedGameVersion();
+    }
+
+    static std::string SupportedVersionsText() {
+        std::string text = GetSupportedGameVersionsString("\n    ");
+#ifdef GTASA
+        text += "\n    ";
+        text += GetGameVersionName(GAME_10EU);
+#endif
+        return text;
+    }
+
     // Singleton access for event callbacks
     static AutosaveMod& Instance() {
         static AutosaveMod instance;
@@ -533,6 +564,10 @@ private:
     // State tracking
     // ========================================================================
     
+#ifdef GTASA
+    bool m_initialised = false;  // Guards the first-frame setup OnGameProcess does
+#endif
+
     // Load detection
     bool m_justLoaded = false;
     unsigned int m_loadedAtTime = 0;
@@ -572,6 +607,17 @@ private:
     }
 
     void OnGameProcess() {
+#ifdef GTASA
+        // SA does not hook initGameEvent, so the one-time setup happens here on the
+        // first processed frame. Unlike that event this does not fire again when the
+        // player restarts, but nothing in OnGameInit needs to: the config and the pad
+        // only have to be read once, and DetectGameLoad already treats the CTimer
+        // reset a restart causes as a load.
+        if (!m_initialised) {
+            m_initialised = true;
+            OnGameInit();
+        }
+#endif
         unsigned int currentTime = CTimer::m_snTimeInMilliseconds;
 
         ControllerInput::Update(currentTime);
