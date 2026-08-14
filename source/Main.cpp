@@ -977,6 +977,10 @@ private:
         if (!m_justLoaded && isNearBlip && !m_wasNearMissionBlip) {
             if (currentTime > m_lastNearBlipAutosaveTime + Config::AUTOSAVE_COOLDOWN_MS) {
                 m_pendingAutosave = true;
+                // Paired with the result line in PerformAutosave: a pending line with no
+                // result after it means IsGameSafeToSave() kept refusing -- being in a
+                // vehicle is the usual reason, and is deliberate.
+                Diag::Line("  mission marker in range, autosave pending");
             }
         }
 
@@ -1028,6 +1032,8 @@ private:
         CClock::ms_nGameClockMinutes = savedMinutes;
         CClock::ms_nGameClockSeconds = savedSeconds;
 #endif
+
+        Diag::Line("  autosave slot %d: %s", slot, saveSuccess ? "ok" : "reported failure");
 
         // Vice City: SaveSlot() returns false even when save succeeds, so always show notification
         // GTA III and SA: Use actual return value
