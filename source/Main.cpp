@@ -492,6 +492,18 @@ namespace ControllerInput {
 class AutosaveMod {
 public:
     AutosaveMod() {
+        // The Plugin SDK resolves every game address at compile time for a single exe
+        // revision (PLUGIN_SGV_10EN / PLUGIN_SGV_10US). On any other build the event
+        // hooks below would be written into unrelated code, so refuse to install them
+        // and say why -- otherwise the mod just silently does nothing.
+        if (!IsSupportedGameVersion()) {
+            Error("Unsupported game version: %s\n\n"
+                  "This mod only works with:\n    %s\n\n"
+                  "Downgrade the game to that version, or remove this mod.",
+                  GetGameVersionName(), GetSupportedGameVersionsString("\n    ").c_str());
+            return;
+        }
+
         Events::initGameEvent += []{ Instance().OnGameInit(); };
         Events::gameProcessEvent += []{ Instance().OnGameProcess(); };
         Events::drawHudEvent += []{ Instance().OnDrawHud(); };

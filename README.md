@@ -12,7 +12,15 @@ Automatically saves your game when you approach a mission, after completing one,
 
 ## Requirements
 
-- **Game version 1.0** — the mod requires the original unpatched exe for each game. Downgrade guides: [GTA III](https://www.google.com/search?q=gta3+downgrade), [Vice City](https://www.google.com/search?q=gta+vice+city+downgrade+1.0), [San Andreas](https://www.google.com/search?q=gta+san+andreas+downgrade+1.0)
+- **Game version 1.0** — the mod requires the original unpatched exe for each game. Nothing else works: 1.1 / 1.01, the Steam and Rockstar Launcher builds, and the Definitive Edition are all unsupported, and for San Andreas the **US** 1.0 exe is required (1.0 EU is a different build and will not work). If you launch the game with an unsupported exe the mod shows an error box naming the version it found, then disables itself.
+
+  | Game | Supported exe |
+  |------|---------------|
+  | GTA III | 1.0 EN |
+  | Vice City | 1.0 EN |
+  | San Andreas | 1.0 US (`Compact` or `HoodLum`) |
+
+  Downgrade guides: [GTA III](https://www.google.com/search?q=gta3+downgrade), [Vice City](https://www.google.com/search?q=gta+vice+city+downgrade+1.0), [San Andreas](https://www.google.com/search?q=gta+san+andreas+downgrade+1.0+us)
 - **ASI Loader** — download the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases) by ThirteenAG. From the release assets, grab `dinput8.dll` and place it in your game's installation root directory (the folder containing the game exe).
 
 ## Installation
