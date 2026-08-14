@@ -23,6 +23,8 @@
 #include <extensions/Config.h>
 #include <extensions/Screen.h>
 #include <Xinput.h>
+#include <cstdarg>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -49,6 +51,89 @@ namespace Config {
 }
 
 // ============================================================================
+// Load Diagnostics
+// ============================================================================
+// A plugin that declines to install its hooks is indistinguishable from one the
+// ASI loader never loaded at all, which makes "it didn't work" impossible to act
+// on. Every launch therefore drops a short log next to the game exe recording the
+// detected game version, the bytes the SDK fingerprinted it from, and whether each
+// event actually fired. No log file at all means the .asi was never loaded.
+namespace Diag {
+
+    const char* LogPath() {
+        return GAME_PATH(TARGET_NAME ".log");
+    }
+
+    void Write(const char* mode, const char* format, va_list args) {
+        FILE* f = nullptr;
+        if (fopen_s(&f, LogPath(), mode) != 0 || !f) return;
+        vfprintf(f, format, args);
+        fputc('\n', f);
+        fclose(f);
+    }
+
+    void Start(const char* format, ...) {
+        va_list args;
+        va_start(args, format);
+        Write("w", format, args);
+        va_end(args);
+    }
+
+    void Line(const char* format, ...) {
+        va_list args;
+        va_start(args, format);
+        Write("a", format, args);
+        va_end(args);
+    }
+
+    // Logged once per event so a mod that loads but never runs is distinguishable
+    // from one whose hooks were written to the wrong place.
+    void Once(bool& flag, const char* what) {
+        if (flag) return;
+        flag = true;
+        Line("  first %s", what);
+    }
+
+}
+
+#ifdef GTASA
+// ============================================================================
+// San Andreas Game Symbols
+// ============================================================================
+// plugin-sdk does not resolve San Andreas addresses at compile time. Its macro
+//     GLOBAL_ADDRESS_BY_VERSION(a,b,c,d,e,f) -> plugin::by_version_dyn(a,b,c,d,e,f)
+// runs at load and switches on GetGameVersion(), and the SDK only ever populated the
+// 1.0 US column -- every other column is a literal 0. So on 1.0 EU the SDK's
+// CTheScripts::ScriptSpace, TheCamera, the CClock members and the CGenericGameStorage
+// entry points all come out null, and touching any of them takes the game down. That,
+// not any genuine difference between the builds, is what crashed 1.0 EU.
+//
+// The addresses below are the 1.0 US ones, which tools/check_addresses.py confirms
+// hold identical code and data on 1.0 EU. Binding them here keeps the mod independent
+// of the SDK's version table.
+namespace SAGame {
+    static int& OnAMissionFlag           = *reinterpret_cast<int*>(0xA476AC);
+    static char* const ScriptSpace       =  reinterpret_cast<char*>(0xA49960);
+    static CCamera& Camera               = *reinterpret_cast<CCamera*>(0xB6F028);
+    static unsigned short& ClockSeconds  = *reinterpret_cast<unsigned short*>(0xB70150);
+    static unsigned char& ClockMinutes   = *reinterpret_cast<unsigned char*>(0xB70152);
+    static unsigned char& ClockHours     = *reinterpret_cast<unsigned char*>(0xB70153);
+
+    inline void MakeValidSaveName(int slot) {
+        reinterpret_cast<void(__cdecl*)(int)>(0x5D0E90)(slot);
+    }
+
+    inline bool GenericSave(int unused) {
+        return reinterpret_cast<bool(__cdecl*)(int)>(0x5D13E0)(unused);
+    }
+
+    inline bool CheckSlotDataValid(int slot, bool unused) {
+        return reinterpret_cast<bool(__cdecl*)(int, bool)>(0x5D1380)(slot, unused);
+    }
+}
+#endif
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 namespace Utils {
@@ -57,11 +142,29 @@ namespace Utils {
         return CWorld::Players[0].m_pPed;
     }
 
+    // Reads the script-space mission flag directly rather than calling
+    // CTheScripts::IsPlayerOnAMission(). On San Andreas the SDK resolves that function
+    // through by_version_dyn(), so it is a null pointer on anything but 1.0 US (see
+    // the SAGame namespace). The bounds check matters independently of that: the events
+    // this mod hooks also run before and between game sessions, when the flag still
+    // holds whatever was left in it, and indexing ScriptSpace with that walks off the
+    // end. Bounding it makes every one of those frames harmless.
     bool IsOnMission() {
-#ifdef GTA3
-        if (CTheScripts::OnAMissionFlag == 0) return false;
-        int* missionFlag = reinterpret_cast<int*>(&CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag]);
-        return (*missionFlag != 0);
+#if defined(GTA3) || defined(GTASA)
+#ifdef GTASA
+        constexpr int SCRIPT_SPACE_SIZE = 200000;
+#else
+        constexpr int SCRIPT_SPACE_SIZE = 8192;
+#endif
+#ifdef GTASA
+        int flagOffset = SAGame::OnAMissionFlag;
+        char* scriptSpace = SAGame::ScriptSpace;
+#else
+        int flagOffset = CTheScripts::OnAMissionFlag;
+        char* scriptSpace = reinterpret_cast<char*>(CTheScripts::ScriptSpace);
+#endif
+        if (flagOffset <= 0 || flagOffset > SCRIPT_SPACE_SIZE - (int)sizeof(int)) return false;
+        return *reinterpret_cast<int*>(&scriptSpace[flagOffset]) != 0;
 #else
         return CTheScripts::IsPlayerOnAMission();
 #endif
@@ -229,17 +332,23 @@ namespace Utils {
     void SetPlayerAndCameraHeading(CPlayerPed* player, float heading) {
         if (!player) return;
 
-        int activeCam = TheCamera.m_nActiveCam;
 #ifdef GTASA
-        TheCamera.m_aCams[activeCam].m_fHorizontalAngle = heading;
-        TheCamera.m_aCams[activeCam].m_fTargetBeta = heading;
-        TheCamera.m_aCams[activeCam].m_fTrueBeta = heading;
-        TheCamera.m_aCams[activeCam].m_fTransitionBeta = heading;
+        CCamera& camera = SAGame::Camera;
 #else
-        TheCamera.m_asCams[activeCam].m_fHorizontalAngle = heading;
-        TheCamera.m_asCams[activeCam].m_fTargetBeta = heading;
-        TheCamera.m_asCams[activeCam].m_fTrueBeta = heading;
-        TheCamera.m_asCams[activeCam].m_fTransitionBeta = heading;
+        CCamera& camera = TheCamera;
+#endif
+        int activeCam = camera.m_nActiveCam;
+#ifdef GTASA
+        if (activeCam < 0 || activeCam >= (int)(sizeof(camera.m_aCams) / sizeof(camera.m_aCams[0]))) return;
+        camera.m_aCams[activeCam].m_fHorizontalAngle = heading;
+        camera.m_aCams[activeCam].m_fTargetBeta = heading;
+        camera.m_aCams[activeCam].m_fTrueBeta = heading;
+        camera.m_aCams[activeCam].m_fTransitionBeta = heading;
+#else
+        camera.m_asCams[activeCam].m_fHorizontalAngle = heading;
+        camera.m_asCams[activeCam].m_fTargetBeta = heading;
+        camera.m_asCams[activeCam].m_fTrueBeta = heading;
+        camera.m_asCams[activeCam].m_fTransitionBeta = heading;
 #endif
 #ifdef GTASA
         player->m_fCurrentRotation = heading;
@@ -492,11 +601,18 @@ namespace ControllerInput {
 class AutosaveMod {
 public:
     AutosaveMod() {
-        // The Plugin SDK resolves every game address at compile time for a single exe
-        // revision (PLUGIN_SGV_10EN / PLUGIN_SGV_10US). On any other build the event
-        // hooks below would be written into unrelated code, so refuse to install them
-        // and say why -- otherwise the mod just silently does nothing.
+        // Instance() constructs a second AutosaveMod, and that one must not register
+        // another set of handlers -- doing so both doubles every per-frame action and
+        // mutates the handler list while the event that triggered it is still walking
+        // it. Only the first construction installs anything.
+        static bool installed = false;
+        if (installed) return;
+        installed = true;
+
+        LogEnvironment();
+
         if (!IsUsableGameVersion()) {
+            Diag::Line("  refused: game version not supported");
             Error("Unsupported game version: %s\n\n"
                   "This mod only works with:\n    %s\n\n"
                   "Downgrade the game to that version, or remove this mod.",
@@ -504,25 +620,29 @@ public:
             return;
         }
 
-#ifndef GTASA
-        // SA deliberately skips this event -- see IsUsableGameVersion().
-        Events::initGameEvent += []{ Instance().OnGameInit(); };
+#ifdef GTASA
+        if (!InstallHooks()) return;
+#else
+        Events::initGameEvent += []{ RunGuarded(&AutosaveMod::OnGameInit, "OnGameInit"); };
+        Events::gameProcessEvent += []{ RunGuarded(&AutosaveMod::OnGameProcess, "OnGameProcess"); };
+        Events::drawHudEvent += []{ RunGuarded(&AutosaveMod::OnDrawHud, "OnDrawHud"); };
 #endif
-        Events::gameProcessEvent += []{ Instance().OnGameProcess(); };
-        Events::drawHudEvent += []{ Instance().OnDrawHud(); };
+
+        Diag::Line("  hooks installed");
     }
 
 private:
-    // San Andreas 1.0 EU is the same build as 1.0 US with two shifted code regions:
-    // below 0x741000 the two images are address-identical, 0x741000-0x7C0FFF is
-    // displaced by +0x50 and the remainder of .text by +0x40. Every global this mod
-    // reads sits at an identical address in both (verified by counting immediate
-    // references to each in the two .text sections), as does every function it calls
-    // -- all of those live below 0x741000. The single exception was the hook site for
-    // Events::initGameEvent at 0x748CFB, which lands in the +0x50 region and would
-    // patch the middle of an unrelated instruction on EU. The SA target therefore does
-    // not use that event at all (the one-time setup runs on the first processed frame
-    // instead), which leaves nothing version-specific and makes 1.0 EU safe to accept.
+    // Hooks are only installed on a build this mod has actually been checked against;
+    // anywhere else the addresses it patches and reads would land in unrelated code.
+    //
+    // San Andreas 1.0 EU is accepted even though plugin-sdk only claims 1.0 US. The two
+    // images are the same build with two displaced code regions -- identical below
+    // 0x741000, +0x50 through 0x7C0FFF, +0x40 for the rest of .text -- and every global
+    // and function this mod uses lives in the identical region. Supporting it took two
+    // things the SDK gets wrong off 1.0 US, both handled elsewhere in this file: its
+    // events never install (see InstallHooks) and its version-dispatched addresses all
+    // resolve to null (see the SAGame namespace). Nothing here depends on an address
+    // above 0x741000, which is the one region that genuinely moved.
     //
     // tools/check_addresses.py reproduces the comparison against a pair of exes.
     static bool IsUsableGameVersion() {
@@ -530,6 +650,99 @@ private:
         if (GetGameVersion() == GAME_10EU) return true;
 #endif
         return IsSupportedGameVersion();
+    }
+
+#ifdef GTASA
+    // plugin::Events cannot be used on the SA target. For San Andreas
+    // AddressList<Addr, H_CALL> expands to two RefList entries tagged
+    // GAME_10US_COMPACT and GAME_10US_HOODLUM, and EventList's PatchAll installs a
+    // hook only where its tag equals GetGameVersion(). On 1.0 EU that is GAME_10EU,
+    // so `event += handler` matched nothing, patched nothing, and reported nothing --
+    // the mod loaded and sat inert. Both call sites hold identical bytes across all
+    // three accepted builds (see IsUsableGameVersion), so patch them directly.
+    using GameHookFn = void (__cdecl *)();
+    static inline GameHookFn s_originalGameProcess = nullptr;
+    static inline GameHookFn s_originalDrawHud = nullptr;
+
+    static void __cdecl GameProcessHook() {
+        s_originalGameProcess();
+        RunGuarded(&AutosaveMod::OnGameProcess, "OnGameProcess");
+    }
+
+    static void __cdecl DrawHudHook() {
+        s_originalDrawHud();
+        RunGuarded(&AutosaveMod::OnDrawHud, "OnDrawHud");
+    }
+
+    // Bypassing the SDK's version gate means bypassing its safety, so refuse to write
+    // anywhere that does not already hold the CALL we expect to be replacing.
+    static bool PatchCall(unsigned int address, void* hook, GameHookFn& original) {
+        unsigned char opcode = *reinterpret_cast<unsigned char*>(address);
+        if (opcode != 0xE8) {
+            Diag::Line("  refused: %#010x holds %#04x, expected a call (0xE8)", address, opcode);
+            return false;
+        }
+        original = reinterpret_cast<GameHookFn>(injector::MakeCALL(address, hook).get<void>());
+        Diag::Line("  patched %#010x -> original %p", address, reinterpret_cast<void*>(original));
+        return original != nullptr;
+    }
+
+    static bool InstallHooks() {
+        return PatchCall(0x53E981, GameProcessHook, s_originalGameProcess)
+            && PatchCall(0x53E4FF, DrawHudHook, s_originalDrawHud);
+    }
+#endif
+
+    // A mod has no business taking the game down with it. Every entry point runs behind
+    // this: a fault is written to the log with the faulting address and the module it
+    // landed in, and the mod then switches itself off for the rest of the session rather
+    // than faulting again on the very next frame.
+    static inline bool s_faulted = false;
+
+    static int ReportFault(EXCEPTION_POINTERS* info, const char* where) {
+        s_faulted = true;
+
+        void* at = info->ExceptionRecord->ExceptionAddress;
+        HMODULE module = nullptr;
+        const char* name = "?";
+        char path[MAX_PATH] = "";
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               reinterpret_cast<LPCSTR>(at), &module) && module &&
+            GetModuleFileNameA(module, path, MAX_PATH)) {
+            const char* slash = strrchr(path, '\\');
+            name = slash ? slash + 1 : path;
+        }
+        Diag::Line("  FAULT in %s: code %#010x at %p (%s+%#x) -- mod disabled for this session",
+                   where, info->ExceptionRecord->ExceptionCode, at, name,
+                   static_cast<unsigned int>(static_cast<char*>(at) - reinterpret_cast<char*>(module)));
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
+
+    // No locals with destructors here -- MSVC rejects __try in a function that needs
+    // unwinding, which is why this is a wrapper rather than a guard inside each handler.
+    static void RunGuarded(void (AutosaveMod::*handler)(), const char* where) {
+        if (s_faulted) return;
+        __try {
+            (Instance().*handler)();
+        }
+        __except (ReportFault(GetExceptionInformation(), where)) {
+        }
+    }
+
+    // Records what the SDK's fingerprint actually saw at runtime. On a protected or
+    // repacked exe the bytes in memory need not match the ones on disk, so this is
+    // the only trustworthy reading of which build the mod believes it is attached to.
+    static void LogEnvironment() {
+        Diag::Start("%s -- built %s %s", TARGET_NAME, __DATE__, __TIME__);
+        Diag::Line("  game version   %s (id %u)", GetGameVersionName(), GetGameVersion());
+        Diag::Line("  supported      %s", SupportedVersionsText().c_str());
+#ifdef GTASA
+        Diag::Line("  [0x401000]     %#010x   [0x8245BC] %#06x",
+                   plugin::patch::GetUInt(0x401000), plugin::patch::GetUInt(0x8245BC));
+        Diag::Line("  [0x53E981]     %#010x   [0x53E4FF] %#010x  (hook sites, expect E8...)",
+                   plugin::patch::GetUInt(0x53E981), plugin::patch::GetUInt(0x53E4FF));
+#endif
     }
 
     static std::string SupportedVersionsText() {
@@ -568,6 +781,11 @@ private:
     bool m_initialised = false;  // Guards the first-frame setup OnGameProcess does
 #endif
 
+    // One-shot markers for the load log
+    bool m_loggedInit = false;
+    bool m_loggedProcess = false;
+    bool m_loggedDrawHud = false;
+
     // Load detection
     bool m_justLoaded = false;
     unsigned int m_loadedAtTime = 0;
@@ -600,6 +818,7 @@ private:
     // ========================================================================
     
     void OnGameInit() {
+        Diag::Once(m_loggedInit, "init");
         ControllerInput::Init();
         LoadConfig();
         ResetLoadState();
@@ -607,6 +826,14 @@ private:
     }
 
     void OnGameProcess() {
+        Diag::Once(m_loggedProcess, "process tick");
+
+        // This event also runs on the menu, where there is no world yet: the mission
+        // flag CTheScripts::IsPlayerOnAMission() indexes ScriptSpace with is still
+        // uninitialised there, so calling it walks off into unmapped memory and takes
+        // the process down. Nothing below has anything to do without a player anyway.
+        if (!Utils::GetPlayer()) return;
+
 #ifdef GTASA
         // SA does not hook initGameEvent, so the one-time setup happens here on the
         // first processed frame. Unlike that event this does not fire again when the
@@ -631,6 +858,7 @@ private:
     }
 
     void OnDrawHud() {
+        Diag::Once(m_loggedDrawHud, "hud draw");
         DrawDebugInfo();
         DrawAutosaveNotification();
         DrawRetryPrompt();
@@ -772,22 +1000,34 @@ private:
 
     bool PerformAutosave(unsigned int currentTime, int slot) {
         // Preserve game time (saving normally advances clock by 6 hours)
+#ifdef GTASA
+        unsigned char savedHours = SAGame::ClockHours;
+        unsigned char savedMinutes = SAGame::ClockMinutes;
+        unsigned short savedSeconds = SAGame::ClockSeconds;
+#else
         unsigned char savedHours = CClock::ms_nGameClockHours;
         unsigned char savedMinutes = CClock::ms_nGameClockMinutes;
         unsigned short savedSeconds = CClock::ms_nGameClockSeconds;
+#endif
 
         // Attempt to save - check return value
 #ifdef GTASA
-        CGenericGameStorage::MakeValidSaveName(slot);
-        bool saveSuccess = CGenericGameStorage::GenericSave(0);
+        SAGame::MakeValidSaveName(slot);
+        bool saveSuccess = SAGame::GenericSave(0);
 #else
         bool saveSuccess = PcSaveHelper.SaveSlot(slot);
 #endif
 
         // Restore game time
+#ifdef GTASA
+        SAGame::ClockHours = savedHours;
+        SAGame::ClockMinutes = savedMinutes;
+        SAGame::ClockSeconds = savedSeconds;
+#else
         CClock::ms_nGameClockHours = savedHours;
         CClock::ms_nGameClockMinutes = savedMinutes;
         CClock::ms_nGameClockSeconds = savedSeconds;
+#endif
 
         // Vice City: SaveSlot() returns false even when save succeeds, so always show notification
         // GTA III and SA: Use actual return value
@@ -853,7 +1093,7 @@ private:
         if (missionFailedTextVisible && !m_wasMissionFailedTextVisible) {
             // Mission failed text just appeared - show retry prompt if we have a save
 #ifdef GTASA
-            if (CGenericGameStorage::CheckSlotDataValid(Config::MISSION_RETRY_SAVE_SLOT, false)) {
+            if (SAGame::CheckSlotDataValid(Config::MISSION_RETRY_SAVE_SLOT, false)) {
 #else
             if (CheckSlotDataValid(Config::MISSION_RETRY_SAVE_SLOT)) {
 #endif
@@ -933,7 +1173,7 @@ private:
         MakeValidSaveName(Config::MISSION_RETRY_SAVE_SLOT);
         FrontEndMenuManager.m_nCurrentSaveSlot = Config::MISSION_RETRY_SAVE_SLOT;
 #elif defined(GTASA)
-        CGenericGameStorage::MakeValidSaveName(Config::MISSION_RETRY_SAVE_SLOT);
+        SAGame::MakeValidSaveName(Config::MISSION_RETRY_SAVE_SLOT);
         FrontEndMenuManager.m_nSelectedSaveGame = Config::MISSION_RETRY_SAVE_SLOT;
 #elif defined(GTAVC)
         FrontEndMenuManager.m_nCurrentSaveSlot = Config::MISSION_RETRY_SAVE_SLOT;
