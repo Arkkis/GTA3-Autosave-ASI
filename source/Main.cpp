@@ -152,9 +152,9 @@ namespace Utils {
     bool IsOnMission() {
 #if defined(GTA3) || defined(GTASA)
 #ifdef GTASA
-        constexpr int SCRIPT_SPACE_SIZE = 200000;
+        constexpr int SCRIPT_SPACE_SIZE = 200000;              // CTheScripts::ScriptSpace[200000]
 #else
-        constexpr int SCRIPT_SPACE_SIZE = 8192;
+        const int SCRIPT_SPACE_SIZE = (int)MAX_SCRIPT_SPACE_SIZE;  // the SDK's own bound for III
 #endif
 #ifdef GTASA
         int flagOffset = SAGame::OnAMissionFlag;
