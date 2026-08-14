@@ -21,6 +21,8 @@ Automatically saves your game when you approach a mission, after completing one,
   | San Andreas | 1.0 US (`Compact` or `HoodLum`) |
 
   Downgrade guides: [GTA III](https://www.google.com/search?q=gta3+downgrade), [Vice City](https://www.google.com/search?q=gta+vice+city+downgrade+1.0), [San Andreas](https://www.google.com/search?q=gta+san+andreas+downgrade+1.0+us)
+
+  Not sure which exe you have? Run `python tools/identify_exe.py <path-to-exe>` — it applies the same fingerprint the mod uses and prints the version name plus the exe's hashes.
 - **ASI Loader** — download the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases) by ThirteenAG. From the release assets, grab `dinput8.dll` and place it in your game's installation root directory (the folder containing the game exe).
 
 ## Installation
