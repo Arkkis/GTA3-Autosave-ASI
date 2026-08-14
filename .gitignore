@@ -4,3 +4,7 @@
 *.vcxproj.user
 /plugin-sdk
 .claude/settings.local.json
+
+# Game exes dropped in for the tools/ scripts to compare
+*.exe
+.pruner/
