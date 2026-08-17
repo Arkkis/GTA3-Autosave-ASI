@@ -1,0 +1,34 @@
+#include <winver.h>
+
+// An unsigned DLL with no version metadata at all is a generic-detection factor for
+// antivirus and for Nexus Mods' upload scanner. Populating VERSIONINFO does not make
+// the file trusted, but it removes "no identifying metadata" from the pile of signals.
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION    1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+FILEFLAGS      0
+FILEOS         VOS_NT_WINDOWS32
+FILETYPE       VFT_DLL
+FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"  // US English, Unicode
+        BEGIN
+            VALUE "CompanyName",     "Arkkis"
+            VALUE "FileDescription", "GTA Autosave - automatic saving for GTA III, Vice City and San Andreas"
+            VALUE "FileVersion",     "1.0.0.0"
+            VALUE "InternalName",    "Autosave"
+            VALUE "LegalCopyright",  "Copyright (C) 2026 Arkkis. MIT licensed."
+            VALUE "ProductName",     "GTA Autosave"
+            VALUE "ProductVersion",  "1.0.0.0"
+            VALUE "Comments",        "https://github.com/Arkkis/GTA-Autosave-ASI"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

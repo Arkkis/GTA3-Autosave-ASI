@@ -361,6 +361,7 @@ xcopy /Y "$(TargetPath)" "$(GTA_SA_DIR)\scripts"
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="source\Main.cpp" />
+    <ResourceCompile Include="source\Autosave.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
