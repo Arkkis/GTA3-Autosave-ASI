@@ -23,6 +23,10 @@
 #include <extensions/Config.h>
 #include <extensions/Screen.h>
 #include <Xinput.h>
+// Statically imported (not LoadLibrary'd) so the .asi has a plain, inspectable import
+// table - runtime API resolution trips antivirus/Nexus heuristics. xinput9_1_0.dll
+// ships with every Windows since Vista, so there is nothing to fall back to.
+#pragma comment(lib, "xinput9_1_0.lib")
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -480,11 +484,8 @@ namespace Utils {
 // The stock III/VC executables fold a joypad's D-Pad into the left stick and only
 // write CControllerState's DPad* fields from bound keyboard actions, so CPad never
 // sees a real controller's D-Pad. Polling XInput directly bypasses the game's input
-// plumbing and gives one code path for all three games. XInputGetState is resolved
-// dynamically so no extra .lib is linked and a missing DLL degrades to "no pad".
+// plumbing and gives one code path for all three games.
 namespace ControllerInput {
-
-    typedef DWORD (WINAPI *XInputGetStateFn)(DWORD, XINPUT_STATE*);
 
     struct ButtonName {
         const char* name;    // as written in the ini
@@ -510,8 +511,6 @@ namespace ControllerInput {
         { "Y",              "Y",             XINPUT_GAMEPAD_Y               },
     };
 
-    static HMODULE s_xinputDll = nullptr;
-    static XInputGetStateFn s_getState = nullptr;
     static bool s_connected = false;
     static bool s_everUsed = false;
     static WORD s_currButtons = 0;
@@ -519,23 +518,8 @@ namespace ControllerInput {
     static unsigned int s_lastProbeTime = 0;
     static bool s_probed = false;
 
-    void Init() {
-        static const char* dllNames[] = { "xinput1_4.dll", "xinput1_3.dll", "xinput9_1_0.dll" };
-        for (const char* dll : dllNames) {
-            s_xinputDll = LoadLibraryA(dll);
-            if (s_xinputDll) {
-                s_getState = (XInputGetStateFn)GetProcAddress(s_xinputDll, "XInputGetState");
-                if (s_getState) break;
-                FreeLibrary(s_xinputDll);
-                s_xinputDll = nullptr;
-            }
-        }
-    }
-
     void Update(unsigned int currentTime) {
         s_prevButtons = s_currButtons;
-
-        if (!s_getState) return;
 
         // Back off between probes while nothing is plugged in.
         // CTimer resets on load, so a backwards jump forces an immediate re-probe.
@@ -550,7 +534,7 @@ namespace ControllerInput {
         s_probed = true;
 
         XINPUT_STATE state = {};
-        if (s_getState(0, &state) != ERROR_SUCCESS) {
+        if (XInputGetState(0, &state) != ERROR_SUCCESS) {
             s_connected = false;
             s_currButtons = 0;
             return;
@@ -819,7 +803,6 @@ private:
     
     void OnGameInit() {
         Diag::Once(m_loggedInit, "init");
-        ControllerInput::Init();
         LoadConfig();
         ResetLoadState();
         m_autosaveDisplayUntil = 0;

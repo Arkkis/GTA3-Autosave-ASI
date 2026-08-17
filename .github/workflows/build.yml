@@ -74,6 +74,9 @@ jobs:
         run: msbuild Autosave.sln /t:Clean,Build /p:Configuration=Release /p:Platform=SA /p:PlatformToolset=v143 /v:minimal /nologo
 
       - name: Create Release
+        # master only, so a branch can be built as a compile check without publishing.
+        # Covers both the push trigger and a manual `gh workflow run --ref master`.
+        if: github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}

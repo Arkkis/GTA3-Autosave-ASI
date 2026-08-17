@@ -76,7 +76,7 @@ Everything lives in a single file: `source/Main.cpp`. It is organized into three
 
 1. **`Config` namespace** — compile-time constants (cooldowns, ranges, save slots). Change behavior here first before touching logic.
 2. **`Utils` namespace** — stateless helper functions. Includes game-state queries (`IsOnMission`, `IsCutsceneRunning`, `IsGameSafeToSave`) and blip/marker utilities. `IsMissionGiverSprite` hard-codes the list of GTA III mission giver radar sprites used to distinguish mission markers from other blips.
-3. **`ControllerInput` namespace** — XInput gamepad polling for the mission retry prompt. Owns its own static state (edge detection, connection status). `XInputGetState` is resolved at runtime via `LoadLibraryA`/`GetProcAddress` (trying `xinput1_4` → `xinput1_3` → `xinput9_1_0`), so no extra `.lib` is linked and a missing DLL just means "no pad".
+3. **`ControllerInput` namespace** — XInput gamepad polling for the mission retry prompt. Owns its own static state (edge detection, connection status). `XInputGetState` is a static import via `#pragma comment(lib, "xinput9_1_0.lib")` (present on every Windows since Vista). It was previously resolved at runtime with `LoadLibraryA`/`GetProcAddress`; do **not** go back to that — dynamic API resolution in an unsigned DLL is a stock antivirus heuristic and got a Nexus Mods build flagged as suspicious.
 4. **`AutosaveMod` class** — singleton that owns all mutable state and hooks into three Plugin SDK events:
    - `OnGameInit` — loads config from `Autosave.III.ini`
    - `OnGameProcess` — per-frame logic: load detection, autosave triggering, mission retry state machine
